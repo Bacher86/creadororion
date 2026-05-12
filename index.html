@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#05070A" />
+  <meta name="description" content="ORION — Motor de diseño IA. Genera UI de producción con un prompt." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ORION" />
+
+  <title>ORION — AI Design Engine</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Fuentes -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CDN (para el preview sandbox) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --bg: #05070A;
+      --surface: #0A0F16;
+      --border: #1E293B;
+      --border-hover: #334155;
+      --text: #CBD5E1;
+      --muted: #475569;
+      --cyan: #22D3EE;
+      --purple: #A855F7;
+      --green: #4ADE80;
+      --yellow: #FCD34D;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%; width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── LAYOUT ── */
+    #app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+    /* ── TOPBAR ── */
+    #topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; height: 44px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(5,7,10,0.95);
+      backdrop-filter: blur(12px);
+      z-index: 100; flex-shrink: 0;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .logo-hex {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 900; color: #000;
+    }
+    .logo-name {
+      font-family: 'Syne', sans-serif; font-weight: 800; font-size: 15px;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 0.15em;
+    }
+    .logo-version { font-size: 10px; color: var(--muted); margin-left: 4px; }
+
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 8px; font-size: 11px;
+      font-family: 'JetBrains Mono', monospace; font-weight: 500;
+      cursor: pointer; border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      transition: all 0.15s; letter-spacing: 0.05em;
+    }
+    .btn:hover { border-color: var(--border-hover); color: var(--text); }
+    .btn-primary {
+      background: linear-gradient(135deg, rgba(34,211,238,.12), rgba(168,85,247,.12));
+      border-color: rgba(34,211,238,.25); color: var(--cyan);
+    }
+    .btn-primary:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(34,211,238,.15); }
+    .btn-export { border-color: rgba(168,85,247,.25); color: var(--purple); }
+    .btn-export:hover { border-color: var(--purple); }
+    .btn-success { border-color: rgba(74,222,128,.3); color: var(--green); background: rgba(74,222,128,.08); }
+
+    .ad-slot-top {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 12px; border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 10px; color: var(--muted);
+    }
+    .ad-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); animation: pulse 2s infinite; }
+
+    /* ── MAIN SPLIT ── */
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── SIDEBAR ── */
+    #sidebar {
+      width: 200px; flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      background: var(--bg);
+    }
+
+    .panel-label {
+      padding: 8px 12px; font-size: 10px; color: var(--muted);
+      letter-spacing: 0.12em; border-bottom: 1px solid var(--border);
+    }
+
+    .file-tree { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+    .tree-item {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 10px; font-size: 11px; color: var(--muted);
+      cursor: pointer; transition: all 0.1s; border-radius: 4px; margin: 0 4px;
+    }
+    .tree-item:hover { background: var(--surface); color: var(--text); }
+    .tree-item.active { background: rgba(34,211,238,.08); color: var(--cyan); border: 1px solid rgba(34,211,238,.15); }
+    .tree-icon { font-size: 12px; }
+
+    .sidebar-ad {
+      margin: 8px; padding: 10px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+    }
+    .sidebar-ad-label { font-size: 9px; color: var(--muted); margin-bottom: 4px; letter-spacing: .1em; }
+    .sidebar-ad-text { font-size: 10px; color: #64748b; line-height: 1.5; }
+    .sidebar-ad-cta {
+      display: block; margin-top: 8px; padding: 5px; text-align: center;
+      border-radius: 6px; font-size: 10px;
+      background: linear-gradient(135deg, rgba(34,211,238,.1), rgba(168,85,247,.1));
+      border: 1px solid rgba(34,211,238,.15); color: var(--cyan);
+      cursor: pointer; text-decoration: none; transition: all .15s;
+    }
+    .sidebar-ad-cta:hover { border-color: var(--cyan); }
+
+    /* ── CENTER ── */
+    #center { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    #tabs {
+      display: flex; align-items: center;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg); flex-shrink: 0; padding: 0 8px;
+    }
+
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 16px; font-size: 11px; color: var(--muted);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: all .15s; letter-spacing: .04em;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active-preview { color: var(--cyan); border-color: var(--cyan); background: rgba(34,211,238,.04); }
+    .tab.active-code { color: var(--purple); border-color: var(--purple); background: rgba(168,85,247,.04); }
+    .tab.active-split { color: var(--text); border-color: var(--border-hover); }
+
+    .tab-spacer { flex: 1; }
+
+    .stream-indicator {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 12px; font-size: 10px; color: var(--cyan);
+      animation: pulse 1s infinite;
+    }
+    .stream-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); }
+    .char-count { padding: 0 12px; font-size: 10px; color: var(--muted); }
+
+    /* ── CANVAS ── */
+    #canvas { flex: 1; overflow: hidden; position: relative; }
+
+    .view-layer { width: 100%; height: 100%; display: none; }
+    .view-layer.active { display: flex; }
+
+    /* Preview */
+    #preview-view { position: relative; }
+    #sandbox-frame { width: 100%; height: 100%; border: none; background: var(--bg); }
+
+    /* Code editor */
+    #code-view { overflow: auto; background: var(--bg); }
+    #code-editor {
+      width: 100%; height: 100%;
+      background: transparent; border: none; outline: none; resize: none;
+      color: #7DD3FC; font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      line-height: 1.7; padding: 16px; caret-color: var(--cyan);
+    }
+
+    /* Split */
+    #split-view { gap: 0; }
+    .split-pane { flex: 1; overflow: hidden; }
+    .split-pane:first-child { border-right: 1px solid var(--border); }
+    .split-code { overflow: auto; background: var(--bg); height: 100%; }
+    .split-code textarea { width: 100%; height: 100%; background: transparent; border: none; outline: none; resize: none; color: #7DD3FC; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.7; padding: 16px; caret-color: var(--cyan); }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: absolute; inset: 0; z-index: 10;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(5,7,10,.8); backdrop-filter: blur(4px);
+    }
+    #loading-overlay.visible { display: flex; }
+    .loader-ring {
+      width: 48px; height: 48px; position: relative;
+    }
+    .loader-ring::before {
+      content: ''; position: absolute; inset: 0; border-radius: 50%;
+      border: 1px solid rgba(34,211,238,.15); animation: ping 1.5s infinite;
+    }
+    .loader-ring::after {
+      content: ''; position: absolute; inset: 4px; border-radius: 50%;
+      border: 1px solid transparent;
+      border-top-color: var(--cyan);
+      animation: spin .8s linear infinite;
+    }
+    .loader-text { margin-top: 16px; font-size: 10px; color: var(--cyan); letter-spacing: .2em; animation: pulse 1s infinite; }
+
+    /* ── CHAT PANEL ── */
+    #chat-panel {
+      width: 260px; flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; background: var(--bg);
+    }
+
+    #chat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+    }
+    .chat-title { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); letter-spacing: .1em; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+    #messages { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .empty-state { text-align: center; padding: 20px 0; }
+    .empty-hex { font-size: 28px; margin-bottom: 8px; opacity: .4; }
+    .empty-text { font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+    .suggestion {
+      padding: 7px 10px; border-radius: 8px; font-size: 10px; color: var(--muted);
+      border: 1px solid var(--border); cursor: pointer; text-align: left;
+      background: transparent; font-family: 'JetBrains Mono', monospace;
+      transition: all .15s; width: 100%; margin-top: 4px;
+    }
+    .suggestion:hover { border-color: rgba(34,211,238,.3); color: var(--cyan); background: rgba(34,211,238,.04); }
+
+    .msg { display: flex; }
+    .msg.user { justify-content: flex-end; }
+
+    .bubble {
+      max-width: 90%; padding: 8px 12px; border-radius: 12px;
+      font-size: 11px; line-height: 1.5;
+    }
+    .bubble-user {
+      background: linear-gradient(135deg, rgba(34,211,238,.15), rgba(168,85,247,.15));
+      border: 1px solid rgba(34,211,238,.2); color: #E2E8F0; border-radius: 12px 4px 12px 12px;
+    }
+    .bubble-orion {
+      background: var(--surface); border: 1px solid var(--border);
+      color: #94A3B8; border-radius: 4px 12px 12px 12px;
+    }
+    .orion-mark { color: var(--cyan); margin-right: 4px; font-weight: 700; }
+
+    #chat-input-area {
+      padding: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px;
+    }
+
+    .input-box {
+      display: flex; align-items: flex-end; gap: 6px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 8px; transition: border-color .15s;
+    }
+    .input-box:focus-within { border-color: rgba(34,211,238,.3); }
+
+    #prompt-input {
+      flex: 1; background: transparent; border: none; outline: none; resize: none;
+      color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      line-height: 1.5; max-height: 80px; overflow-y: auto;
+    }
+    #prompt-input::placeholder { color: var(--muted); }
+
+    .send-btn {
+      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      border: none; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; font-size: 13px; transition: opacity .15s;
+    }
+    .send-btn:hover { opacity: .85; }
+    .send-btn:disabled { opacity: .3; cursor: default; }
+
+    .action-row { display: flex; gap: 6px; }
+    .action-btn {
+      flex: 1; padding: 6px; border-radius: 7px; font-size: 10px;
+      font-family: 'JetBrains Mono', monospace; color: var(--muted);
+      border: 1px solid var(--border); background: transparent;
+      cursor: pointer; transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .action-btn:hover:not(:disabled) { border-color: rgba(34,211,238,.3); color: var(--cyan); }
+    .action-btn:disabled { opacity: .3; cursor: default; }
+
+    .chat-ad {
+      margin: 0 8px 8px; padding: 10px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--surface), var(--bg));
+    }
+    .chat-ad-label { font-size: 9px; color: var(--muted); margin-bottom: 4px; letter-spacing: .1em; }
+    .chat-ad-text { font-size: 10px; color: #64748b; }
+    .chat-ad-link { font-size: 10px; color: var(--purple); text-decoration: none; }
+    .chat-ad-link:hover { color: var(--cyan); }
+
+    /* ── STATUSBAR ── */
+    #statusbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; height: 24px;
+      border-top: 1px solid var(--border);
+      background: linear-gradient(90deg, var(--bg), var(--surface));
+      flex-shrink: 0;
+    }
+    .status-left, .status-right { display: flex; align-items: center; gap: 16px; }
+    .status-item { font-size: 10px; color: var(--muted); }
+    .status-ready { color: rgba(74,222,128,.7); }
+    .status-ai { color: rgba(34,211,238,.6); }
+    .status-pro { color: rgba(168,85,247,.6); }
+
+    /* ── INSPIRATION MODAL ── */
+    #inspiration-modal {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.85); backdrop-filter: blur(12px);
+    }
+    #inspiration-modal.open { display: flex; }
+
+    .modal-box {
+      width: min(96vw, 1100px);
+      background: #0A0F16; border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 40px 80px rgba(0,0,0,.6);
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+    }
+    .modal-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; color: #fff; letter-spacing: .1em; }
+    .modal-sub { font-size: 10px; color: var(--muted); }
+    .modal-close {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .variants-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 16px; }
+
+    .variant-card { display: flex; flex-direction: column; gap: 8px; }
+
+    .variant-badge {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .variant-name { font-size: 11px; font-weight: 700; letter-spacing: .15em; }
+    .variant-name.minimal { color: #94A3B8; }
+    .variant-name.brutalist { color: #FBBF24; }
+    .variant-name.enterprise { color: #60A5FA; }
+    .variant-desc { font-size: 9px; color: var(--muted); }
+
+    .variant-frame {
+      border-radius: 10px; overflow: hidden;
+      border: 1px solid var(--border); height: 260px; position: relative;
+      cursor: pointer; transition: border-color .2s;
+    }
+    .variant-frame:hover { border-color: rgba(34,211,238,.4); }
+    .variant-frame iframe { width: 100%; height: 100%; border: none; background: var(--bg); }
+
+    .variant-loading {
+      position: absolute; inset: 0; background: var(--bg);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    }
+    .variant-progress { width: 100px; height: 2px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .variant-progress-bar { height: 100%; border-radius: 2px; transition: width .3s; }
+    .minimal-bar { background: #94A3B8; }
+    .brutalist-bar { background: #FBBF24; }
+    .enterprise-bar { background: #60A5FA; }
+
+    .variant-select-btn {
+      width: 100%; padding: 7px; border-radius: 8px; font-size: 10px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace; letter-spacing: .1em;
+      cursor: pointer; border: 1px solid; transition: all .15s;
+    }
+    .variant-select-btn.minimal { color: #94A3B8; border-color: rgba(148,163,184,.25); background: transparent; }
+    .variant-select-btn.minimal:hover { background: rgba(148,163,184,.1); }
+    .variant-select-btn.brutalist { color: #FBBF24; border-color: rgba(251,191,36,.25); background: transparent; }
+    .variant-select-btn.brutalist:hover { background: rgba(251,191,36,.1); }
+    .variant-select-btn.enterprise { color: #60A5FA; border-color: rgba(96,165,250,.25); background: transparent; }
+    .variant-select-btn.enterprise:hover { background: rgba(96,165,250,.1); }
+    .variant-select-btn:disabled { opacity: .4; cursor: default; }
+
+    .modal-footer {
+      padding: 10px 20px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-hint { font-size: 10px; color: var(--muted); }
+    .modal-cancel { font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; }
+    .modal-cancel:hover { color: var(--text); }
+
+    /* ── ANIMATIONS ── */
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    @keyframes ping { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.8); opacity: 0; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .msg { animation: fadeIn .2s ease; }
+
+    /* ── INSTALL BANNER ── */
+    #install-banner {
+      display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      z-index: 300; background: var(--surface); border: 1px solid rgba(34,211,238,.3);
+      border-radius: 12px; padding: 12px 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      align-items: center; gap: 14px;
+      font-size: 12px;
+    }
+    #install-banner.visible { display: flex; }
+    .install-text { color: var(--text); }
+    .install-text strong { color: var(--cyan); }
+    .install-btn {
+      padding: 6px 16px; border-radius: 8px; font-size: 11px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      color: #000; font-weight: 700; border: none; cursor: pointer;
+    }
+    .install-dismiss { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #chat-panel { width: 220px; }
+      .ad-slot-top { display: none; }
+      .variants-grid { grid-template-columns: 1fr; }
+      .modal-box { border-radius: 12px; }
+    }
+    @media (max-width: 600px) {
+      #chat-panel { display: none; }
+      #tabs { overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── TOPBAR ── -->
+  <header id="topbar">
+    <div class="logo">
+      <div class="logo-hex">⬡</div>
+      <div>
+        <span class="logo-name">ORION</span>
+        <span class="logo-version">v2.0 · Gemini</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <div class="ad-slot-top">
+        <div class="ad-dot"></div>
+        <span>Upgrade ORION Pro — Generaciones ilimitadas →</span>
+      </div>
+      <button class="btn btn-primary" id="btn-inspiration">⬡ Inspiración</button>
+      <button class="btn btn-export" id="btn-export">↓ Exportar</button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <div id="main">
+
+    <!-- ── SIDEBAR ── -->
+    <aside id="sidebar">
+      <div class="panel-label">EXPLORADOR</div>
+      <div class="file-tree" id="file-tree">
+        <div class="tree-item" style="padding-left:10px; color:#475569; font-size:10px;">📁 src</div>
+        <div class="tree-item active" style="padding-left:22px;" onclick="selectFile('components/Page')">
+          <span class="tree-icon">📄</span> Page.html
+        </div>
+        <div class="tree-item" style="padding-left:22px;" onclick="selectFile('theme/tokens')">
+          <span class="tree-icon">📄</span> tokens.ts
+        </div>
+        <div class="tree-item" style="padding-left:10px; color:#475569; font-size:10px; margin-top:4px;">📄 tailwind.config.js</div>
+        <div class="tree-item" style="padding-left:10px; color:#475569; font-size:10px;">📄 package.json</div>
+      </div>
+      <div class="sidebar-ad">
+        <div class="sidebar-ad-label">ORION PRO</div>
+        <div class="sidebar-ad-text">Generaciones ilimitadas + exportación real Next.js</div>
+        <a class="sidebar-ad-cta" href="#">Upgrade →</a>
+      </div>
+    </aside>
+
+    <!-- ── CENTER ── -->
+    <main id="center">
+      <div id="tabs">
+        <div class="tab active-preview" id="tab-preview" onclick="setView('preview')">👁 Preview</div>
+        <div class="tab" id="tab-code" onclick="setView('code')">‹/› Editor</div>
+        <div class="tab" id="tab-split" onclick="setView('split')">⧉ Split</div>
+        <div class="tab-spacer"></div>
+        <div id="stream-indicator" class="stream-indicator" style="display:none">
+          <div class="stream-dot"></div> Streaming...
+        </div>
+        <div id="char-count" class="char-count"></div>
+      </div>
+
+      <div id="canvas">
+        <!-- Preview -->
+        <div class="view-layer active" id="preview-view">
+          <iframe id="sandbox-frame" sandbox="allow-scripts" title="ORION Preview"></iframe>
+          <div id="loading-overlay">
+            <div style="display:flex;flex-direction:column;align-items:center">
+              <div class="loader-ring"></div>
+              <div class="loader-text">GENERANDO</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Code -->
+        <div class="view-layer" id="code-view">
+          <textarea id="code-editor" placeholder="// El código generado aparecerá aquí...\n// También puedes editar directamente y el preview se actualiza." spellcheck="false"></textarea>
+        </div>
+
+        <!-- Split -->
+        <div class="view-layer" id="split-view" style="display:none">
+          <div class="split-pane split-code">
+            <textarea id="split-editor" spellcheck="false" style="width:100%;height:100%;background:transparent;border:none;outline:none;resize:none;color:#7DD3FC;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;padding:16px;caret-color:#22D3EE;"></textarea>
+          </div>
+          <div class="split-pane">
+            <iframe id="split-frame" sandbox="allow-scripts" style="width:100%;height:100%;border:none;background:#05070A;"></iframe>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ── CHAT PANEL ── -->
+    <aside id="chat-panel">
+      <div id="chat-header">
+        <div class="chat-title">
+          <span>⬡</span> ORION CONSOLE
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)">
+          <div class="status-dot"></div> AI Ready
+        </div>
+      </div>
+
+      <div id="messages">
+        <div class="empty-state">
+          <div class="empty-hex">⬡</div>
+          <div class="empty-text">Describe lo que quieres construir. ORION genera UI de producción al instante.</div>
+        </div>
+        <button class="suggestion" onclick="useSuggestion('Landing page SaaS con hero y pricing')">Landing page SaaS con hero y pricing</button>
+        <button class="suggestion" onclick="useSuggestion('Dashboard admin con gráficas y tabla de datos')">Dashboard admin con gráficas y tabla de datos</button>
+        <button class="suggestion" onclick="useSuggestion('Tienda online con grid de productos')">Tienda online con grid de productos</button>
+        <button class="suggestion" onclick="useSuggestion('Pantalla de login minimalista')">Pantalla de login minimalista</button>
+      </div>
+
+      <div id="chat-input-area">
+        <div class="input-box">
+          <textarea id="prompt-input" rows="2" placeholder="Describe tu componente..."></textarea>
+          <button class="send-btn" id="send-btn">➤</button>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="btn-variants">⬡ 3 Variantes</button>
+          <button class="action-btn" id="btn-reset" title="Limpiar">↺</button>
+        </div>
+      </div>
+
+      <div class="chat-ad">
+        <div class="chat-ad-label">SPONSORED</div>
+        <div class="chat-ad-text">Despliega en Vercel con 1 click.</div>
+        <a class="chat-ad-link" href="https://vercel.com" target="_blank">vercel.com →</a>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ── STATUSBAR ── -->
+  <footer id="statusbar">
+    <div class="status-left">
+      <span class="status-item">⬡ ORION v2.0</span>
+      <span class="status-item status-ai">Gemini 2.0 Flash</span>
+      <span class="status-item">Streaming SSE</span>
+    </div>
+    <div class="status-right">
+      <span class="status-item status-ready" id="status-ready" style="display:none">● Componente listo</span>
+      <span class="status-item">Next.js 14 · TypeScript · Tailwind</span>
+      <span class="status-item status-pro">Exportación disponible</span>
+    </div>
+  </footer>
+</div>
+
+<!-- ── INSPIRATION MODAL ── -->
+<div id="inspiration-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">⬡ INSPIRATION MODE</div>
+        <div class="modal-sub">Generación paralela de 3 variantes arquitectónicas</div>
+      </div>
+      <button class="modal-close" onclick="closeInspiration()">✕</button>
+    </div>
+
+    <div class="variants-grid">
+      <!-- MINIMAL -->
+      <div class="variant-card">
+        <div class="variant-badge">
+          <span class="variant-name minimal">MINIMAL</span>
+          <span class="variant-desc">Clean · Whitespace</span>
+        </div>
+        <div class="variant-frame" id="frame-minimal" onclick="selectVariant('minimal')">
+          <div class="variant-loading" id="loading-minimal">
+            <div class="loader-ring"></div>
+            <div style="font-size:10px;color:var(--muted);letter-spacing:.1em" id="progress-minimal">SINTETIZANDO...</div>
+            <div class="variant-progress"><div class="variant-progress-bar minimal-bar" id="bar-minimal" style="width:0%"></div></div>
+          </div>
+          <iframe id="iframe-minimal" sandbox="allow-scripts" style="width:100%;height:100%;border:none;background:#05070A;display:none"></iframe>
+        </div>
+        <button class="variant-select-btn minimal" id="selbtn-minimal" disabled onclick="selectVariant('minimal')">SELECCIONAR MINIMAL</button>
+      </div>
+
+      <!-- BRUTALIST -->
+      <div class="variant-card">
+        <div class="variant-badge">
+          <span class="variant-name brutalist">BRUTALIST</span>
+          <span class="variant-desc">Raw · Bold · Stark</span>
+        </div>
+        <div class="variant-frame" id="frame-brutalist" onclick="selectVariant('brutalist')">
+          <div class="variant-loading" id="loading-brutalist">
+            <div class="loader-ring"></div>
+            <div style="font-size:10px;color:var(--muted);letter-spacing:.1em" id="progress-brutalist">FORJANDO...</div>
+            <div class="variant-progress"><div class="variant-progress-bar brutalist-bar" id="bar-brutalist" style="width:0%"></div></div>
+          </div>
+          <iframe id="iframe-brutalist" sandbox="allow-scripts" style="width:100%;height:100%;border:none;background:#05070A;display:none"></iframe>
+        </div>
+        <button class="variant-select-btn brutalist" id="selbtn-brutalist" disabled onclick="selectVariant('brutalist')">SELECCIONAR BRUTALIST</button>
+      </div>
+
+      <!-- ENTERPRISE -->
+      <div class="variant-card">
+        <div class="variant-badge">
+          <span class="variant-name enterprise">ENTERPRISE</span>
+          <span class="variant-desc">Pro · Structured · Data</span>
+        </div>
+        <div class="variant-frame" id="frame-enterprise" onclick="selectVariant('enterprise')">
+          <div class="variant-loading" id="loading-enterprise">
+            <div class="loader-ring"></div>
+            <div style="font-size:10px;color:var(--muted);letter-spacing:.1em" id="progress-enterprise">ARQUITECTANDO...</div>
+            <div class="variant-progress"><div class="variant-progress-bar enterprise-bar" id="bar-enterprise" style="width:0%"></div></div>
+          </div>
+          <iframe id="iframe-enterprise" sandbox="allow-scripts" style="width:100%;height:100%;border:none;background:#05070A;display:none"></iframe>
+        </div>
+        <button class="variant-select-btn enterprise" id="selbtn-enterprise" disabled onclick="selectVariant('enterprise')">SELECCIONAR ENTERPRISE</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <span class="modal-hint">3 variantes generadas en paralelo · Haz click en cualquiera para cargar en el editor</span>
+      <button class="modal-cancel" onclick="closeInspiration()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PWA INSTALL BANNER ── -->
+<div id="install-banner">
+  <div class="install-text"><strong>Instala ORION</strong> como app — sin App Store</div>
+  <button class="install-btn" id="install-btn">Instalar App</button>
+  <button class="install-dismiss" onclick="dismissInstall()">✕</button>
+</div>
+
+<script>
+  // ─── CONFIG ──────────────────────────────────────────────────────────────
+  // ⚠️  CAMBIA ESTA URL por la de tu Vercel backend después del deploy
+  const API_URL = "https://TU-PROYECTO.up.railway.app/api/generate"; // ← pon tu URL de Railway aquí
+
+  // ─── STATE ───────────────────────────────────────────────────────────────
+  let activeCode = "";
+  let currentView = "preview";
+  let isGenerating = false;
+  let variantCodes = { minimal: "", brutalist: "", enterprise: "" };
+  let deferredInstallPrompt = null;
+
+  // ─── SANDBOX RENDER ──────────────────────────────────────────────────────
+  function buildSrcDoc(code) {
+    return `<!DOCTYPE html><html><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.tailwindcss.com"><\/script>
+<style>body{margin:0;background:#05070A;font-family:'JetBrains Mono',monospace}*{box-sizing:border-box}</style>
+</head><body>${code || '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#1E293B;font-family:monospace;font-size:14px;flex-direction:column;gap:8px"><div style="font-size:32px">⬡</div><div>ORION Canvas</div><div style="font-size:11px;color:#0F172A">Esperando generación...</div></div>'}</body></html>`;
+  }
+
+  function updatePreview(code) {
+    document.getElementById("sandbox-frame").srcdoc = buildSrcDoc(code);
+    document.getElementById("split-frame").srcdoc = buildSrcDoc(code);
+  }
+
+  // ─── VIEW MODES ──────────────────────────────────────────────────────────
+  function setView(view) {
+    currentView = view;
+    ["preview","code","split"].forEach(v => {
+      const layer = document.getElementById(`${v}-view`);
+      const tab = document.getElementById(`tab-${v}`);
+      layer.classList.remove("active");
+      layer.style.display = "none";
+      tab.className = "tab";
+    });
+    const layer = document.getElementById(`${view}-view`);
+    layer.classList.add("active");
+    layer.style.display = "flex";
+    document.getElementById(`tab-${view}`).className = `tab active-${view}`;
+
+    if (view === "code") {
+      document.getElementById("code-editor").value = activeCode;
+    }
+    if (view === "split") {
+      document.getElementById("split-editor").value = activeCode;
+    }
+  }
+
+  // ─── API CALL WITH STREAMING ─────────────────────────────────────────────
+  async function callAPI(prompt, style, context, onChunk) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, style, context }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`API Error ${res.status}: ${err}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let full = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n").filter(l => l.startsWith("data: "));
+      for (const line of lines) {
+        try {
+          const json = JSON.parse(line.slice(6));
+          if (json.type === "content_block_delta" && json.delta?.text) {
+            full += json.delta.text;
+            onChunk(full);
+          }
+        } catch(_) {}
+      }
+    }
+    return full;
+  }
+
+  // ─── GENERATE ────────────────────────────────────────────────────────────
+  async function generate() {
+    const promptEl = document.getElementById("prompt-input");
+    const prompt = promptEl.value.trim();
+    if (!prompt || isGenerating) return;
+
+    isGenerating = true;
+    promptEl.value = "";
+    document.getElementById("send-btn").disabled = true;
+    document.getElementById("btn-variants").disabled = true;
+
+    addMessage("user", prompt);
+
+    document.getElementById("loading-overlay").classList.add("visible");
+    document.getElementById("stream-indicator").style.display = "flex";
+
+    try {
+      let streamed = "";
+      const final = await callAPI(prompt, "enterprise", activeCode, (chunk) => {
+        streamed = chunk;
+        updatePreview(chunk);
+        document.getElementById("char-count").textContent = `${chunk.length.toLocaleString()} chars`;
+        if (currentView === "code") document.getElementById("code-editor").value = chunk;
+        if (currentView === "split") document.getElementById("split-editor").value = chunk;
+      });
+
+      activeCode = final;
+      document.getElementById("status-ready").style.display = "inline";
+      addMessage("orion", `✓ Componente generado (${final.length.toLocaleString()} chars). Puedes editar directamente o pedir cambios.`);
+    } catch (err) {
+      addMessage("orion", `⚠ Error: ${err.message}. ¿Está configurada la URL del backend en API_URL?`);
+    } finally {
+      isGenerating = false;
+      document.getElementById("loading-overlay").classList.remove("visible");
+      document.getElementById("stream-indicator").style.display = "none";
+      document.getElementById("send-btn").disabled = false;
+      document.getElementById("btn-variants").disabled = false;
+    }
+  }
+
+  // ─── PARALLEL INSPIRATION ────────────────────────────────────────────────
+  async function launchInspiration() {
+    const prompt = document.getElementById("prompt-input").value.trim();
+    if (!prompt) { addMessage("orion", "⚠ Escribe un prompt antes de usar Inspiration Mode."); return; }
+
+    document.getElementById("inspiration-modal").classList.add("open");
+    addMessage("orion", `⬡ Generando 3 variantes en paralelo para: "${prompt}"`);
+
+    const styles = ["minimal","brutalist","enterprise"];
+    variantCodes = { minimal:"", brutalist:"", enterprise:"" };
+
+    // Reset UI
+    styles.forEach(s => {
+      document.getElementById(`loading-${s}`).style.display = "flex";
+      document.getElementById(`iframe-${s}`).style.display = "none";
+      document.getElementById(`selbtn-${s}`).disabled = true;
+      document.getElementById(`bar-${s}`).style.width = "0%";
+      variantCodes[s] = "";
+    });
+
+    // Fire all 3 in parallel
+    styles.forEach(async (style) => {
+      try {
+        await callAPI(prompt, style, activeCode, (chunk) => {
+          variantCodes[style] = chunk;
+          const pct = Math.min(95, chunk.length / 30);
+          document.getElementById(`bar-${style}`).style.width = pct + "%";
+          document.getElementById(`progress-${style}`).textContent = `${chunk.length} chars...`;
+        });
+
+        // Done
+        document.getElementById(`bar-${style}`).style.width = "100%";
+        document.getElementById(`loading-${style}`).style.display = "none";
+        const iframe = document.getElementById(`iframe-${style}`);
+        iframe.srcdoc = buildSrcDoc(variantCodes[style]);
+        iframe.style.display = "block";
+        document.getElementById(`selbtn-${style}`).disabled = false;
+      } catch (err) {
+        document.getElementById(`progress-${style}`).textContent = "ERROR";
+        document.getElementById(`bar-${style}`).style.background = "#EF4444";
+      }
+    });
+  }
+
+  function selectVariant(style) {
+    if (!variantCodes[style]) return;
+    activeCode = variantCodes[style];
+    updatePreview(activeCode);
+    document.getElementById("char-count").textContent = `${activeCode.length.toLocaleString()} chars`;
+    document.getElementById("status-ready").style.display = "inline";
+    closeInspiration();
+    addMessage("orion", `✓ Variante ${style.toUpperCase()} cargada en el editor.`);
+  }
+
+  function closeInspiration() {
+    document.getElementById("inspiration-modal").classList.remove("open");
+  }
+
+  // ─── EXPORT ──────────────────────────────────────────────────────────────
+  function exportProject() {
+    const pkgJson = `{\n  "name": "orion-export",\n  "version": "0.1.0",\n  "scripts": { "dev": "next dev", "build": "next build" },\n  "dependencies": { "next": "14.0.0", "react": "^18", "react-dom": "^18", "tailwindcss": "^3" }\n}`;
+    const tokens = `// Generated by ORION\nexport const tokens = {\n  colors: { bg: "#05070A", border: "#1E293B", cyan: "#22D3EE", purple: "#A855F7" },\n  fonts: { sans: "JetBrains Mono, monospace" }\n} as const;`;
+    const twConfig = `module.exports = {\n  content: ["./src/**/*.{ts,tsx}"],\n  theme: { extend: { colors: { brand: { cyan: "#22D3EE", purple: "#A855F7" } } } },\n  plugins: []\n};`;
+    const component = `export default function Page() {\n  return (\n    <div dangerouslySetInnerHTML={{ __html: \`${(activeCode||"").replace(/`/g,"\\`")}\` }} />\n  );\n}`;
+
+    const content = [
+      "/* ── package.json ── */\n" + pkgJson,
+      "/* ── tailwind.config.js ── */\n" + twConfig,
+      "/* ── src/theme/tokens.ts ── */\n" + tokens,
+      "/* ── src/components/Page.tsx ── */\n" + component,
+    ].join("\n\n" + "─".repeat(60) + "\n\n");
+
+    const blob = new Blob([content], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "orion-export.txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    addMessage("orion", "✓ Exportado: package.json · tailwind.config.js · src/theme/tokens.ts · src/components/Page.tsx");
+    document.getElementById("btn-export").textContent = "✓ Exportado";
+    setTimeout(() => document.getElementById("btn-export").textContent = "↓ Exportar", 3000);
+  }
+
+  // ─── CHAT UI ─────────────────────────────────────────────────────────────
+  function addMessage(role, text) {
+    const msgs = document.getElementById("messages");
+    // Remove empty state on first message
+    const empty = msgs.querySelector(".empty-state");
+    if (empty) empty.remove();
+    const suggestions = msgs.querySelectorAll(".suggestion");
+    suggestions.forEach(s => s.remove());
+
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+    div.innerHTML = `<div class="bubble bubble-${role}">${role==="orion"?'<span class="orion-mark">⬡</span>':''}${text}</div>`;
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function useSuggestion(text) {
+    document.getElementById("prompt-input").value = text;
+    generate();
+  }
+
+  function selectFile(name) {
+    document.querySelectorAll(".tree-item").forEach(i => i.classList.remove("active"));
+    event.target.closest(".tree-item")?.classList.add("active");
+  }
+
+  // ─── PWA INSTALL ─────────────────────────────────────────────────────────
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    document.getElementById("install-banner").classList.add("visible");
+  });
+
+  document.getElementById("install-btn").addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    if (outcome === "accepted") {
+      addMessage("orion", "✓ ORION instalado como app. Encuéntrala en tu pantalla de inicio.");
+      document.getElementById("install-banner").classList.remove("visible");
+    }
+    deferredInstallPrompt = null;
+  });
+
+  function dismissInstall() {
+    document.getElementById("install-banner").classList.remove("visible");
+  }
+
+  // ─── SERVICE WORKER ──────────────────────────────────────────────────────
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").then(reg => {
+      console.log("[ORION] SW registered:", reg.scope);
+    }).catch(err => console.warn("[ORION] SW failed:", err));
+  }
+
+  // ─── EVENT LISTENERS ─────────────────────────────────────────────────────
+  document.getElementById("send-btn").addEventListener("click", generate);
+  document.getElementById("btn-inspiration").addEventListener("click", launchInspiration);
+  document.getElementById("btn-variants").addEventListener("click", launchInspiration);
+  document.getElementById("btn-export").addEventListener("click", exportProject);
+  document.getElementById("btn-reset").addEventListener("click", () => {
+    activeCode = "";
+    updatePreview("");
+    document.getElementById("code-editor").value = "";
+    document.getElementById("split-editor").value = "";
+    document.getElementById("char-count").textContent = "";
+    document.getElementById("status-ready").style.display = "none";
+    document.getElementById("messages").innerHTML = `
+      <div class="empty-state"><div class="empty-hex">⬡</div><div class="empty-text">Canvas limpiado. ¿Qué construimos ahora?</div></div>`;
+  });
+
+  document.getElementById("prompt-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); generate(); }
+  });
+
+  document.getElementById("code-editor").addEventListener("input", (e) => {
+    activeCode = e.target.value;
+    updatePreview(activeCode);
+  });
+
+  document.getElementById("split-editor").addEventListener("input", (e) => {
+    activeCode = e.target.value;
+    document.getElementById("split-frame").srcdoc = buildSrcDoc(activeCode);
+  });
+
+  // Init preview
+  updatePreview("");
+</script>
+</body>
+</html>
