@@ -7,7 +7,7 @@ app.use(express.json());
 // ── CORS ──────────────────────────────────────────────────────────────────
 // Añade aquí tu dominio de GitHub Pages cuando lo tengas
 const ALLOWED_ORIGINS = [
-  "https://Bacher86.github.io",
+  "https://bacher86.github.io",
   "http://localhost:3000",
   "http://127.0.0.1:5500",
 ];
